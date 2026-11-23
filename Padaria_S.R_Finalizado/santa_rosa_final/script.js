@@ -1,0 +1,807 @@
+"use strict";
+
+const KEY = "santarosa_gestao_v1";
+const seed = {
+  products: [
+    {
+      id: 1,
+      name: "Pão Francês",
+      category: "Padaria",
+      price: 0.9,
+      stock: 460,
+      min: 100,
+      unit: "un.",
+      emoji: "🥖",
+    },
+    {
+      id: 2,
+      name: "Bolo de Chocolate",
+      category: "Confeitaria",
+      price: 42.9,
+      stock: 20,
+      min: 5,
+      unit: "kg",
+      emoji: "🍰",
+    },
+    {
+      id: 3,
+      name: "Croissant",
+      category: "Padaria",
+      price: 8.5,
+      stock: 35,
+      min: 10,
+      unit: "un.",
+      emoji: "🥐",
+    },
+    {
+      id: 4,
+      name: "Sonho de Creme",
+      category: "Confeitaria",
+      price: 6.5,
+      stock: 25,
+      min: 8,
+      unit: "un.",
+      emoji: "🍩",
+    },
+    {
+      id: 5,
+      name: "Café Expresso",
+      category: "Bebidas",
+      price: 5,
+      stock: 90,
+      min: 15,
+      unit: "un.",
+      emoji: "☕",
+    },
+    {
+      id: 6,
+      name: "Torta de Morango",
+      category: "Confeitaria",
+      price: 48,
+      stock: 3,
+      min: 5,
+      unit: "un.",
+      emoji: "🥧",
+    },
+    {
+      id: 7,
+      name: "Leite integral",
+      category: "Insumos",
+      price: 5.5,
+      stock: 4,
+      min: 15,
+      unit: "un.",
+      emoji: "🥛",
+    },
+    {
+      id: 8,
+      name: "Farinha de trigo",
+      category: "Insumos",
+      price: 6,
+      stock: 7,
+      min: 20,
+      unit: "kg",
+      emoji: "🌾",
+    },
+    {
+      id: 9,
+      name: "Açúcar",
+      category: "Insumos",
+      price: 4.5,
+      stock: 32,
+      min: 15,
+      unit: "kg",
+      emoji: "🍬",
+    },
+  ],
+  clients: [
+    {
+      id: 1,
+      name: "Mariana Souza",
+      phone: "(19) 99999-1234",
+      email: "mariana@email.com",
+    },
+    {
+      id: 2,
+      name: "João Carlos",
+      phone: "(19) 98888-4567",
+      email: "joao@email.com",
+    },
+    {
+      id: 3,
+      name: "Ana Paula",
+      phone: "(19) 97777-9876",
+      email: "ana@email.com",
+    },
+  ],
+  orders: [],
+  movements: [],
+};
+
+seed.clients.push(
+  {
+    id: 4,
+    name: "Roberto Lima",
+    phone: "(19) 90000-1004",
+    email: "roberto.exemplo@teste.com",
+  },
+  {
+    id: 5,
+    name: "Camila Ferreira",
+    phone: "(19) 90000-1005",
+    email: "camila.exemplo@teste.com",
+  },
+  {
+    id: 6,
+    name: "Pedro Martins",
+    phone: "(19) 90000-1006",
+    email: "pedro.exemplo@teste.com",
+  },
+  {
+    id: 7,
+    name: "Beatriz Oliveira",
+    phone: "(19) 90000-1007",
+    email: "beatriz.exemplo@teste.com",
+  },
+  {
+    id: 8,
+    name: "Lucas Almeida",
+    phone: "(19) 90000-1008",
+    email: "lucas.exemplo@teste.com",
+  },
+);
+
+function createDemoData() {
+  const sample = structuredClone(seed);
+  const patterns = [
+    [
+      [1, 15],
+      [5, 2],
+    ],
+    [
+      [2, 1],
+      [3, 2],
+    ],
+    [
+      [4, 4],
+      [5, 3],
+    ],
+    [
+      [1, 30],
+      [6, 1],
+    ],
+    [
+      [3, 3],
+      [5, 2],
+    ],
+    [
+      [2, 2],
+      [4, 2],
+    ],
+    [
+      [1, 20],
+      [4, 3],
+    ],
+    [
+      [5, 5],
+      [3, 2],
+    ],
+  ];
+  for (let day = 13; day >= 0; day--) {
+    for (let n = 0; n < 4; n++) {
+      const entries = patterns[(day * 3 + n) % patterns.length];
+      const items = entries.map(([id, qty]) => {
+        const prod = sample.products.find((p) => p.id === id);
+        return {
+          productId: id,
+          name: prod.name,
+          category: prod.category,
+          price: prod.price,
+          qty,
+        };
+      });
+      const d = new Date();
+      d.setDate(d.getDate() - day);
+      d.setHours(8 + n * 3, 15 + n * 7, 0, 0);
+      sample.orders.push({
+        id: 1045 + sample.orders.length,
+        clientId: 1 + ((day + n) % 8),
+        items,
+        total: items.reduce((sum, i) => sum + i.price * i.qty, 0),
+        payment: ["Pix", "Cartão", "Dinheiro"][n % 3],
+        status:
+          day === 0
+            ? ["Entregue", "Pronto", "Em preparo", "Pendente"][n]
+            : "Entregue",
+        created: d.toISOString(),
+      });
+    }
+  }
+
+  return sample;
+}
+
+let db;
+
+try {
+  db = JSON.parse(localStorage.getItem(KEY)) || createDemoData();
+} catch {
+  db = createDemoData();
+}
+
+for (const k of Object.keys(seed))
+  if (!Array.isArray(db[k])) db[k] = structuredClone(seed[k]);
+
+const $ = (id) => document.getElementById(id),
+  money = (n) =>
+    Number(n || 0).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }),
+  date = (s) => new Date(s).toLocaleString("pt-BR"),
+  today = (d) => new Date(d).toDateString() === new Date().toDateString(),
+  esc = (v) =>
+    String(v ?? "").replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[c],
+    ),
+  uid = (arr) => Math.max(0, ...arr.map((x) => x.id)) + 1;
+
+function save() {
+  localStorage.setItem(KEY, JSON.stringify(db));
+  render();
+}
+
+const titles = {
+  dashboard: ["Dashboard", "Visão geral da operação da Santa Rosa"],
+  produtos: ["Produtos", "Cadastro e consulta de produtos"],
+  estoque: ["Estoque", "Controle de quantidades e movimentações"],
+  pedidos: ["Pedidos", "Registro e acompanhamento de vendas"],
+  clientes: ["Clientes", "Cadastro de clientes"],
+  relatorios: ["Relatórios", "Indicadores e exportação de dados"],
+};
+
+function go(page) {
+  document
+    .querySelectorAll(".page")
+    .forEach((x) => x.classList.toggle("active", x.id === page));
+  document
+    .querySelectorAll("#nav button")
+    .forEach((x) => x.classList.toggle("active", x.dataset.page === page));
+  $("pageTitle").textContent = titles[page][0];
+  $("pageSub").textContent = titles[page][1];
+  render();
+}
+
+document
+  .querySelectorAll("#nav button")
+  .forEach((b) => b.addEventListener("click", () => go(b.dataset.page)));
+
+$("searchProducts").addEventListener("input", render);
+
+$("categoryFilter").addEventListener("change", render);
+
+$("searchClients").addEventListener("input", render);
+
+const card = (label, value, detail = "") =>
+  `<div class="card"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div><div class="trend">${esc(detail)}</div></div>`;
+
+const table = (headers, rows) =>
+  `<table><thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.length ? rows.join("") : `<tr><td colspan="${headers.length}" class="empty">Nenhum registro encontrado.</td></tr>`}</tbody></table>`;
+
+const statusBadge = (s) =>
+  `<span class="badge ${s === "Entregue" || s === "Pronto" ? "green" : s === "Em preparo" ? "yellow" : s === "Cancelado" ? "red" : "blue"}">${esc(s)}</span>`;
+
+function resetDemo() {
+  if (
+    confirm(
+      "Restaurar dados fictícios de demonstração? Todos os cadastros e pedidos salvos neste navegador serão substituídos.",
+    )
+  ) {
+    db = createDemoData();
+    save();
+    go("dashboard");
+  }
+}
+
+function render() {
+  const current = db.orders.filter((o) => o.status !== "Cancelado"),
+    todayOrders = current.filter((o) => today(o.created)),
+    revenue = todayOrders.reduce((a, o) => a + o.total, 0),
+    low = db.products.filter((p) => p.stock <= p.min),
+    week = Array.from({ length: 7 }, (_, i) => {
+      let d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - 6 + i);
+      return {
+        d,
+        value: current
+          .filter(
+            (o) => new Date(o.created).toDateString() === d.toDateString(),
+          )
+          .reduce((a, o) => a + o.total, 0),
+      };
+    }),
+    max = Math.max(1, ...week.map((x) => x.value));
+  $("dashCards").innerHTML =
+    card("Vendas hoje", money(revenue), "Pedidos não cancelados") +
+    card("Pedidos hoje", todayOrders.length) +
+    card("Produtos cadastrados", db.products.length) +
+    card("Clientes", db.clients.length);
+  $("weekly").innerHTML = week
+    .map(
+      (x) =>
+        `<div class="bar-wrap"><div class="bar-head"><span>${x.d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" })}</span><b>${money(x.value)}</b></div><div class="bar"><i style="width:${(x.value / max) * 100}%"></i></div></div>`,
+    )
+    .join("");
+  $("alerts").innerHTML = low.length
+    ? low
+        .map(
+          (p) =>
+            `<div class="bar-wrap"><div class="bar-head"><span>${esc(p.name)}</span><b>${p.stock} ${esc(p.unit)}</b></div><div class="bar"><i style="width:${Math.min(100, (p.stock / Math.max(1, p.min)) * 100)}%"></i></div></div>`,
+        )
+        .join("")
+    : '<p class="muted">Nenhum item com estoque baixo.</p>';
+  $("recent").innerHTML = table(
+    ["Pedido", "Cliente", "Data", "Valor", "Status"],
+    db.orders
+      .slice()
+      .reverse()
+      .slice(0, 5)
+      .map(
+        (o) =>
+          `<tr><td>#${o.id}</td><td>${esc(clientName(o.clientId))}</td><td>${date(o.created)}</td><td>${money(o.total)}</td><td>${statusBadge(o.status)}</td></tr>`,
+      ),
+  );
+  const q = $("searchProducts").value.toLowerCase(),
+    cat = $("categoryFilter").value;
+  $("productRows").innerHTML =
+    db.products
+      .filter(
+        (p) => p.name.toLowerCase().includes(q) && (!cat || p.category === cat),
+      )
+      .map(
+        (p) =>
+          `<div class="product"><div class="product-top"><span class="emoji">${p.emoji || "🥐"}</span><span class="badge ${p.stock <= p.min ? "yellow" : "green"}">${p.stock <= p.min ? "Baixo estoque" : "Ativo"}</span></div><b>${esc(p.name)}</b><div class="subtitle">${esc(p.category)} • ${esc(p.unit)} • Estoque: ${p.stock}</div><div class="price">${money(p.price)}</div><div class="actions"><button class="btn secondary small" onclick="productForm(${p.id})">Editar</button><button class="btn secondary small" onclick="deleteProduct(${p.id})">Excluir</button></div></div>`,
+      )
+      .join("") || '<div class="empty">Nenhum produto encontrado.</div>';
+  $("stockCards").innerHTML =
+    card("Produtos no estoque", db.products.length) +
+    card("Estoque baixo", low.length) +
+    card("Movimentações registradas", db.movements.length) +
+    card(
+      "Unidades em estoque",
+      db.products.reduce((a, p) => a + p.stock, 0).toLocaleString("pt-BR"),
+      "Soma das quantidades, inclusive kg",
+    );
+  $("stockTable").innerHTML = table(
+    ["Produto", "Categoria", "Atual", "Mínimo", "Status", "Ação"],
+    db.products.map(
+      (p) =>
+        `<tr><td>${esc(p.name)}</td><td>${esc(p.category)}</td><td>${p.stock} ${esc(p.unit)}</td><td>${p.min} ${esc(p.unit)}</td><td><span class="badge ${p.stock <= p.min ? "red" : "green"}">${p.stock <= p.min ? "Baixo" : "Normal"}</span></td><td><button class="btn secondary small" onclick="movementForm(${p.id})">Movimentar</button></td></tr>`,
+    ),
+  );
+  $("movementTable").innerHTML = table(
+    ["Data", "Produto", "Tipo", "Quantidade", "Observação"],
+    db.movements
+      .slice()
+      .reverse()
+      .slice(0, 30)
+      .map(
+        (m) =>
+          `<tr><td>${date(m.created)}</td><td>${esc(m.productName)}</td><td>${esc(m.type)}</td><td>${m.quantity}</td><td>${esc(m.note)}</td></tr>`,
+      ),
+  );
+  $("orderCards").innerHTML = ["Pendente", "Em preparo", "Pronto", "Entregue"]
+    .map((s) => card(s, db.orders.filter((o) => o.status === s).length))
+    .join("");
+  $("orderTable").innerHTML = table(
+    ["Nº", "Cliente", "Itens", "Valor", "Forma", "Status", "Ações"],
+    db.orders
+      .slice()
+      .reverse()
+      .map(
+        (o) =>
+          `<tr><td>#${o.id}</td><td>${esc(clientName(o.clientId))}</td><td>${esc(o.items.map((i) => `${i.qty}x ${i.name}`).join(", "))}</td><td>${money(o.total)}</td><td>${esc(o.payment)}</td><td>${statusBadge(o.status)}</td><td><div class="actions"><select class="select" aria-label="Status do pedido" onchange="changeStatus(${o.id},this.value)">${["Pendente", "Em preparo", "Pronto", "Entregue", "Cancelado"].map((s) => `<option ${o.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></div></td></tr>`,
+      ),
+  );
+  const cq = $("searchClients").value.toLowerCase();
+  $("clientCount").textContent = db.clients.length + " clientes";
+  $("clientTable").innerHTML = table(
+    ["Cliente", "Telefone", "E-mail", "Pedidos", "Total gasto", "Ações"],
+    db.clients
+      .filter((c) =>
+        (c.name + " " + c.email + " " + c.phone).toLowerCase().includes(cq),
+      )
+      .map(
+        (c) =>
+          `<tr><td>${esc(c.name)}</td><td>${esc(c.phone)}</td><td>${esc(c.email)}</td><td>${db.orders.filter((o) => o.clientId === c.id).length}</td><td>${money(current.filter((o) => o.clientId === c.id).reduce((a, o) => a + o.total, 0))}</td><td><div class="actions"><button class="btn secondary small" onclick="clientForm(${c.id})">Editar</button><button class="btn secondary small" onclick="deleteClient(${c.id})">Excluir</button></div></td></tr>`,
+      ),
+  );
+  const month = current.filter((o) => {
+      let d = new Date(o.created),
+        n = new Date();
+      return (
+        d.getMonth() === n.getMonth() && d.getFullYear() === n.getFullYear()
+      );
+    }),
+    monthSum = month.reduce((a, o) => a + o.total, 0),
+    totals = {};
+  month.forEach((o) =>
+    o.items.forEach((i) => {
+      totals[i.category] = (totals[i.category] || 0) + i.price * i.qty;
+    }),
+  );
+  const productSales = {};
+  month.forEach((o) =>
+    o.items.forEach(
+      (i) => (productSales[i.name] = (productSales[i.name] || 0) + i.qty),
+    ),
+  );
+  const champion =
+    Object.entries(productSales).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+    "Sem vendas";
+  $("reportCards").innerHTML =
+    card("Faturamento do mês", money(monthSum)) +
+    card("Ticket médio", money(month.length ? monthSum / month.length : 0)) +
+    card("Pedidos no mês", month.length) +
+    card("Produto campeão", champion);
+  $("categories").innerHTML = Object.keys(totals).length
+    ? Object.entries(totals)
+        .map(
+          ([k, v]) =>
+            `<div class="bar-wrap"><div class="bar-head"><span>${esc(k)}</span><b>${money(v)} (${((v / monthSum) * 100).toFixed(1)}%)</b></div><div class="bar"><i style="width:${(v / monthSum) * 100}%"></i></div></div>`,
+        )
+        .join("")
+    : '<p class="muted">Cadastre pedidos para visualizar os indicadores.</p>';
+}
+
+function clientName(id) {
+  return db.clients.find((c) => c.id === id)?.name || "Cliente removido";
+}
+
+function openForm(title, fields, submit) {
+  $("modalTitle").textContent = title;
+  $("modalFields").innerHTML = fields;
+  $("modal").classList.add("show");
+  $("modalForm").onsubmit = (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      submit(Object.fromEntries(fd));
+      closeModal();
+      save();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+  setTimeout(() => $("modalFields").querySelector("input,select")?.focus(), 0);
+}
+
+function closeModal() {
+  $("modal").classList.remove("show");
+}
+
+$("modal").addEventListener("click", (e) => {
+  if (e.target === $("modal")) closeModal();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeModal();
+});
+
+const field = (name, label, value = "", type = "text", extra = "") =>
+    `<div class="field ${name === "name" ? "full" : ""}"><label for="f_${name}">${label}</label><input id="f_${name}" name="${name}" type="${type}" value="${esc(value)}" ${extra} required></div>`,
+  select = (name, label, options, value) =>
+    `<div class="field"><label for="f_${name}">${label}</label><select id="f_${name}" name="${name}">${options.map((x) => `<option value="${esc(x.value ?? x)}" ${String(x.value ?? x) === String(value) ? "selected" : ""}>${esc(x.label ?? x)}</option>`).join("")}</select></div>`;
+
+function productForm(id) {
+  let p = db.products.find((x) => x.id === id) || {};
+  openForm(
+    id ? "Editar produto" : "Novo produto",
+    field("name", "Nome", p.name || "") +
+      select(
+        "category",
+        "Categoria",
+        ["Padaria", "Confeitaria", "Bebidas", "Insumos", "Outros"],
+        p.category,
+      ) +
+      field(
+        "price",
+        "Preço (R$)",
+        p.price ?? 0,
+        "number",
+        'min="0" step="0.01"',
+      ) +
+      field(
+        "stock",
+        "Estoque atual",
+        p.stock ?? 0,
+        "number",
+        'min="0" step="0.01"',
+      ) +
+      field(
+        "min",
+        "Estoque mínimo",
+        p.min ?? 0,
+        "number",
+        'min="0" step="0.01"',
+      ) +
+      select("unit", "Unidade", ["un.", "kg", "litro"], p.unit) +
+      field("emoji", "Ícone (emoji)", p.emoji || "🥐"),
+    (f) => {
+      let name = f.name.trim();
+      if (!name) throw Error("Informe um nome.");
+      const item = {
+        id: id || uid(db.products),
+        name,
+        category: f.category,
+        price: +f.price,
+        stock: +f.stock,
+        min: +f.min,
+        unit: f.unit,
+        emoji: f.emoji || "🥐",
+      };
+      if (id) db.products = db.products.map((x) => (x.id === id ? item : x));
+      else db.products.push(item);
+    },
+  );
+}
+
+function deleteProduct(id) {
+  if (db.orders.some((o) => o.items.some((i) => i.productId === id)))
+    return alert(
+      "Este produto possui histórico de pedidos e não pode ser excluído.",
+    );
+  if (confirm("Excluir este produto?")) {
+    db.products = db.products.filter((p) => p.id !== id);
+    save();
+  }
+}
+
+function clientForm(id) {
+  let c = db.clients.find((x) => x.id === id) || {};
+  openForm(
+    id ? "Editar cliente" : "Novo cliente",
+    field("name", "Nome", c.name || "") +
+      field("phone", "Telefone", c.phone || "", "tel") +
+      field("email", "E-mail", c.email || "", "email"),
+    (f) => {
+      if (!f.name.trim()) throw Error("Informe o nome.");
+      const item = {
+        id: id || uid(db.clients),
+        name: f.name.trim(),
+        phone: f.phone,
+        email: f.email,
+      };
+      if (id) db.clients = db.clients.map((x) => (x.id === id ? item : x));
+      else db.clients.push(item);
+    },
+  );
+}
+
+function deleteClient(id) {
+  if (db.orders.some((o) => o.clientId === id))
+    return alert("Este cliente possui pedidos e não pode ser excluído.");
+  if (confirm("Excluir este cliente?")) {
+    db.clients = db.clients.filter((c) => c.id !== id);
+    save();
+  }
+}
+
+function movementForm(id) {
+  if (!db.products.length) return alert("Cadastre um produto primeiro.");
+  openForm(
+    "Registrar movimentação",
+    select(
+      "productId",
+      "Produto",
+      db.products.map((p) => ({ value: p.id, label: p.name })),
+      id || db.products[0].id,
+    ) +
+      select("type", "Tipo", ["Entrada", "Saída", "Ajuste"], "Entrada") +
+      field(
+        "quantity",
+        "Quantidade (ajuste = saldo final)",
+        1,
+        "number",
+        'min="0" step="0.01"',
+      ) +
+      field("note", "Observação", ""),
+    (f) => {
+      let p = db.products.find((x) => x.id === +f.productId),
+        qty = +f.quantity;
+      if (!p || !Number.isFinite(qty) || qty < 0)
+        throw Error("Quantidade inválida.");
+      const newStock =
+        f.type === "Entrada"
+          ? p.stock + qty
+          : f.type === "Saída"
+            ? p.stock - qty
+            : qty;
+      if (newStock < 0) throw Error("Estoque insuficiente.");
+      p.stock = +newStock.toFixed(2);
+      db.movements.push({
+        id: uid(db.movements),
+        productId: p.id,
+        productName: p.name,
+        type: f.type,
+        quantity: qty,
+        note: f.note,
+        created: new Date().toISOString(),
+      });
+    },
+  );
+}
+
+function orderForm() {
+  if (!db.products.length) return alert("Cadastre um produto primeiro.");
+  let options = db.products.filter(
+    (p) => p.category !== "Insumos" && p.stock > 0,
+  );
+  if (!options.length)
+    return alert("Não há produtos disponíveis para venda.");
+  let items = [];
+  let clients = [
+    { value: 0, label: "Consumidor não cadastrado" },
+    ...db.clients.map((c) => ({ value: c.id, label: c.name })),
+  ];
+  let fields =
+    select("clientId", "Cliente", clients, 0) +
+    select("payment", "Pagamento", ["Pix", "Dinheiro", "Cartão"], "Pix") +
+    `<div class="field full"><label>Itens do pedido</label><div id="orderLines"></div><button type="button" class="btn secondary small" id="addLine">+ Adicionar item</button></div><div class="field full"><b id="orderTotal">Total: R$ 0,00</b></div>`;
+  openForm("Novo pedido", fields, (f) => {
+    let lines = [...document.querySelectorAll(".order-line")],
+      aggregated = new Map();
+    for (let line of lines) {
+      let id = +line.querySelector("select").value,
+        qty = +line.querySelector("input").value;
+      if (!Number.isFinite(qty) || qty <= 0)
+        throw Error("Informe quantidades maiores que zero.");
+      aggregated.set(id, (aggregated.get(id) || 0) + qty);
+    }
+    if (!aggregated.size) throw Error("Adicione pelo menos um item.");
+    let orderItems = [];
+    for (let [id, qty] of aggregated) {
+      let p = db.products.find((x) => x.id === id);
+      if (!p || p.stock < qty)
+        throw Error("Estoque insuficiente para " + (p?.name || "produto"));
+      orderItems.push({
+        productId: p.id,
+        name: p.name,
+        category: p.category,
+        price: p.price,
+        qty,
+      });
+    }
+    orderItems.forEach((i) => {
+      let p = db.products.find((x) => x.id === i.productId);
+      p.stock = +(p.stock - i.qty).toFixed(2);
+      db.movements.push({
+        id: uid(db.movements),
+        productId: p.id,
+        productName: p.name,
+        type: "Saída (pedido)",
+        quantity: i.qty,
+        note: "Venda",
+        created: new Date().toISOString(),
+      });
+    });
+    db.orders.push({
+      id: Math.max(1044, ...db.orders.map((o) => o.id)) + 1,
+      clientId: +f.clientId,
+      items: orderItems,
+      total: orderItems.reduce((a, i) => a + i.price * i.qty, 0),
+      payment: f.payment,
+      status: "Pendente",
+      created: new Date().toISOString(),
+    });
+  });
+  function updateTotal() {
+    let total = 0;
+    document.querySelectorAll(".order-line").forEach((line) => {
+      let p = db.products.find(
+        (p) => p.id === +line.querySelector("select").value,
+      );
+      total += (p?.price || 0) * (+line.querySelector("input").value || 0);
+    });
+    $("orderTotal").textContent = "Total: " + money(total);
+  }
+  function addLine() {
+    let line = document.createElement("div");
+    line.className = "order-line";
+    line.style = "display:flex;gap:8px;margin-bottom:8px";
+    line.innerHTML = `<select class="select" style="flex:1;min-width:0" aria-label="Produto">${options.map((p) => `<option value="${p.id}">${esc(p.name)} (${money(p.price)})</option>`).join("")}</select><input type="number" aria-label="Quantidade" min="0.01" step="0.01" value="1" style="width:75px;padding:8px;border:1px solid #eadfd1;border-radius:8px"><button type="button" class="btn secondary small">×</button>`;
+    line.querySelector("button").onclick = () => {
+      line.remove();
+      updateTotal();
+    };
+    line.querySelector("select").onchange = updateTotal;
+    line.querySelector("input").oninput = updateTotal;
+    $("orderLines").appendChild(line);
+    updateTotal();
+  }
+  $("addLine").onclick = addLine;
+  addLine();
+}
+
+function changeStatus(id, status) {
+  let o = db.orders.find((x) => x.id === id);
+  if (!o) return;
+  if (o.status === "Cancelado" && status !== "Cancelado")
+    return alert("Pedidos cancelados não podem ser reativados.");
+  if (status === "Cancelado" && o.status !== "Cancelado") {
+    if (!confirm("Cancelar pedido e devolver os itens ao estoque?"))
+      return render();
+    o.items.forEach((i) => {
+      let p = db.products.find((p) => p.id === i.productId);
+      if (p) {
+        p.stock = +(p.stock + i.qty).toFixed(2);
+        db.movements.push({
+          id: uid(db.movements),
+          productId: p.id,
+          productName: p.name,
+          type: "Entrada (cancelamento)",
+          quantity: i.qty,
+          note: "Pedido #" + o.id,
+          created: new Date().toISOString(),
+        });
+      }
+    });
+  }
+  o.status = status;
+  save();
+}
+
+function exportCSV(type) {
+  let rows;
+  if (type === "pedidos")
+    rows = db.orders.map((o) => ({
+      numero: o.id,
+      cliente: clientName(o.clientId),
+      data: date(o.created),
+      itens: o.items.map((i) => i.qty + "x " + i.name).join("; "),
+      total: o.total,
+      pagamento: o.payment,
+      status: o.status,
+    }));
+  else if (type === "produtos")
+    rows = db.products.map((p) => ({
+      produto: p.name,
+      categoria: p.category,
+      preco: p.price,
+      estoque: p.stock,
+      minimo: p.min,
+      unidade: p.unit,
+    }));
+  else if (type === "clientes") rows = db.clients;
+  else rows = db.movements;
+  const keys = rows.length ? Object.keys(rows[0]) : ["Sem registros"];
+  let csv =
+    "\uFEFF" +
+    keys.join(";") +
+    "\r\n" +
+    rows
+      .map((r) =>
+        keys
+          .map((k) => '"' + String(r[k] ?? "").replace(/"/g, '""') + '"')
+          .join(";"),
+      )
+      .join("\r\n");
+  let blob = new Blob([csv], { type: "text/csv;charset=utf-8" }),
+    url = URL.createObjectURL(blob),
+    a = document.createElement("a");
+  a.href = url;
+  a.download = `santa-rosa-${type}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+render();
