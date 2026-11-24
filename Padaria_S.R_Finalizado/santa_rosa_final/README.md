@@ -63,19 +63,8 @@ Para recomeçar os testes, use o botão **Restaurar dados de exemplo** no rodap�
 
 O sistema usa os dados previamente salvos no navegador quando já existem; por isso, a restauração é útil se a versão anterior foi aberta no mesmo navegador.
 
-## 8. Exemplos de funcionamento / roteiro de avaliação
 
-1. **Dashboard:** confira os indicadores de vendas e pedidos recentes já preenchidos.
-2. **Produtos:** cadastre um produto, pesquise pelo nome e altere seu preço.
-3. **Estoque:** registre uma entrada e verifique a alteração no saldo e no histórico.
-4. **Clientes:** cadastre um novo cliente e pesquise seu nome.
-5. **Pedidos:** crie um pedido com dois itens, observe o valor total e a baixa no estoque; altere seu status.
-6. **Relatórios:** confira o faturamento e exporte os dados de vendas em CSV.
-7. **Restauração:** use o botão de demonstração para retornar à base inicial.
-
-As próprias telas do sistema servem como exemplos interativos. Capturas de tela podem ser acrescentadas ao repositório na pasta `imagens/`, se desejado.
-
-## 9. Organização dos arquivos
+## 8. Organização dos arquivos
 
 ```text
 santa_rosa_final/
@@ -85,29 +74,3 @@ santa_rosa_final/
 ├── Integrantes.txt   # Identificação do grupo
 └── README.md         # Documentação e instruções
 ```
-
-## 10. Persistência e limitações
-
-Este é um **protótipo funcional de frontend para fins acadêmicos**, não um sistema pronto para uso comercial. Não possui backend, autenticação real, banco de dados centralizado, sincronização entre dispositivos ou cópias de segurança automáticas. Os registros permanecem somente no navegador e podem ser perdidos se o armazenamento local for limpo.
-
-O faturamento exibido considera pedidos não cancelados, inclusive pedidos ainda não entregues; portanto, representa o **valor dos pedidos registrados**, e não uma conciliação financeira de pagamentos efetivamente recebidos. As quantidades de unidades e quilogramas são mostradas individualmente nas tabelas; a soma global do estoque mistura unidades de medida e serve apenas como indicador simplificado.
-
-**Privacidade:** use apenas dados fictícios nesta demonstração; não cadastre informações pessoais reais ou sensíveis.
-
-## 11. Entrega PIC I
-
-- Enviar o arquivo ZIP completo no **Guia Tarefas do Teams**.
-- Publicar o conteúdo do projeto em um **repositório GitHub acessível ao professor**.
-- Manter este `README.md` na raiz do repositório.
-- Verificar se os arquivos publicados correspondem à versão final do ZIP.
-
-**Observação:** o envio ao Teams e a publicação no GitHub são etapas externas que precisam ser realizadas pelo grupo; este pacote não significa que elas já foram concluídas.
-
-## Organização do código
-
-- `index.html`: estrutura das telas e elementos de interface.
-- `style.css`: estilos, cores, componentes e responsividade.
-- `script.js`: dados fictícios, persistência no navegador, navegação, renderização, cadastros, pedidos, estoque e exportação CSV.
-- `Integrantes.txt`: identificação dos autores.
-
-Os arquivos foram formatados e indentados para facilitar a leitura e manutenção.
